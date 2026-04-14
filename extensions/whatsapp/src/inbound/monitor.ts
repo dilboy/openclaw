@@ -655,6 +655,22 @@ export async function attachWebInboxToSocket(
       logWhatsAppVerbose(options.verbose, `Inbound media download failed: ${String(err)}`);
     }
 
+    if (body === "<media:audio>" && mediaPath && options.cfg) {
+      try {
+        const { transcribeFirstAudio } = await import("./preflight-audio.runtime.js");
+        const transcript = await transcribeFirstAudio({
+          ctx: { MediaPath: mediaPath, MediaType: mediaType },
+          cfg: options.cfg,
+          agentDir: undefined,
+        });
+        if (transcript) {
+          body = transcript;
+        }
+      } catch (err) {
+        logVerbose(`whatsapp: audio preflight transcription failed: ${String(err)}`);
+      }
+    }
+
     return {
       body,
       location: location ?? undefined,

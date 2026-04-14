@@ -32,6 +32,7 @@ function formatSection(
 export function formatMediaUnderstandingBody(params: {
   body?: string;
   outputs: MediaUnderstandingOutput[];
+  cleanBody?: string;
 }): string {
   const outputs = params.outputs.filter((output) => output.text.trim());
   if (outputs.length === 0) {
@@ -39,6 +40,20 @@ export function formatMediaUnderstandingBody(params: {
   }
 
   const userText = extractMediaUserText(params.body);
+
+  // Preflight-transcribed audio: the body already contains exactly the transcript.
+  // Return plain text so the model doesn't see [Audio] wrapper and recite disclaimers.
+  // Compare against both the decorated body and the clean body (e.g. BodyForAgent)
+  // because channels like Telegram prepend envelope metadata to Body.
+  const transcript = outputs[0].text.trim();
+  if (
+    outputs.length === 1 &&
+    outputs[0].kind === "audio.transcription" &&
+    (userText?.trim() === transcript || params.cleanBody?.trim() === transcript)
+  ) {
+    return transcript;
+  }
+
   const sections: string[] = [];
   if (userText && outputs.length > 1) {
     sections.push(`User text:\n${userText}`);

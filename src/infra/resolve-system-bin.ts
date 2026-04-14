@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { getWindowsInstallRoots, getWindowsProgramFilesRoots } from "./windows-install-roots.js";
 
@@ -23,7 +24,7 @@ const UNIX_BASE_TRUSTED_DIRS = ["/usr/bin", "/bin", "/usr/sbin", "/sbin"] as con
 // security-critical ones like openssl — callers needing higher
 // assurance should stick with "strict".
 const DARWIN_STANDARD_DIRS = ["/opt/homebrew/bin", "/usr/local/bin"] as const;
-const LINUX_STANDARD_DIRS = ["/usr/local/bin"] as const;
+const LINUX_STANDARD_DIRS = ["/usr/local/bin", path.join(os.homedir(), ".local", "bin")] as const;
 
 // Windows extensions to probe when searching for executables.
 const WIN_PATHEXT = [".exe", ".cmd", ".bat", ".com"] as const;
