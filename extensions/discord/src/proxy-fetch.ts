@@ -65,13 +65,13 @@ export function validateDiscordProxyUrl(proxyUrl: string): string {
   if (!["http:", "https:"].includes(parsed.protocol)) {
     throw new Error("Proxy URL must use http or https");
   }
-  if (!isLoopbackProxyHostname(parsed.hostname)) {
-    throw new Error("Proxy URL must target a loopback host");
+  if (!isAllowedProxyHostname(parsed.hostname)) {
+    throw new Error("Proxy URL must target a loopback or private/LAN host");
   }
   return proxyUrl;
 }
 
-function isLoopbackProxyHostname(hostname: string): boolean {
+function isAllowedProxyHostname(hostname: string): boolean {
   const normalized = normalizeLowercaseStringOrEmpty(hostname);
   if (!normalized) {
     return false;
@@ -83,7 +83,25 @@ function isLoopbackProxyHostname(hostname: string): boolean {
   }
   const ipFamily = isIP(bracketless);
   if (ipFamily === 4) {
-    return bracketless.startsWith("127.");
+    const parts = bracketless.split(".").map(Number);
+    if (parts.length !== 4) {
+      return false;
+    }
+    // loopback
+    if (parts[0] === 127) {
+      return true;
+    }
+    // RFC 1918 private ranges
+    if (parts[0] === 10) {
+      return true;
+    }
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) {
+      return true;
+    }
+    if (parts[0] === 192 && parts[1] === 168) {
+      return true;
+    }
+    return false;
   }
   if (ipFamily === 6) {
     return bracketless === "::1" || bracketless === "0:0:0:0:0:0:0:1";
