@@ -656,4 +656,91 @@ describe("createDiscordMessageHandler queue behavior", () => {
     expect(processDiscordMessageMock).toHaveBeenCalledTimes(2);
     expect(setStatus).toHaveBeenCalledWith(expect.objectContaining({ activeRuns: 0, busy: false }));
   });
+
+  it("preserves mention metadata when debouncing multiple messages", async () => {
+    preflightDiscordMessageMock.mockReset();
+    processDiscordMessageMock.mockReset();
+
+    preflightDiscordMessageMock.mockImplementation(
+      async (params: { data: { channel_id: string } }) =>
+        createPreflightContext(params.data.channel_id),
+    );
+
+    const handlerParams = createDiscordHandlerParams({
+      cfg: {
+        channels: {
+          discord: {
+            enabled: true,
+            token: "test-token",
+            groupPolicy: "allowlist",
+          },
+        },
+        messages: {
+          inbound: {
+            debounceMs: 50,
+          },
+        },
+      },
+    });
+    const handler = createDiscordMessageHandler(handlerParams);
+
+    const msg1 = {
+      channel_id: "ch-1",
+      author: { id: "user-1" },
+      message: {
+        id: "m-1",
+        author: { id: "user-1", bot: false },
+        content: "hello",
+        channel_id: "ch-1",
+        attachments: [],
+        mentionedUsers: [{ id: "bot-123", username: "Bot" }],
+        mentionedRoles: [],
+        mentionedEveryone: false,
+      },
+    };
+
+    const msg2 = {
+      channel_id: "ch-1",
+      author: { id: "user-1" },
+      message: {
+        id: "m-2",
+        author: { id: "user-1", bot: false },
+        content: "world",
+        channel_id: "ch-1",
+        attachments: [],
+        mentionedUsers: [],
+        mentionedRoles: [{ id: "role-1", name: "Admin" }],
+        mentionedEveryone: true,
+      },
+    };
+
+    await handler(msg1 as never, {} as never);
+    await handler(msg2 as never, {} as never);
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    await vi.waitFor(() => {
+      expect(preflightDiscordMessageMock).toHaveBeenCalledTimes(1);
+    });
+
+    const preflightData = preflightDiscordMessageMock.mock.calls[0]?.[0] as
+      | {
+          data?: {
+            message?: {
+              mentionedUsers?: unknown[];
+              mentionedRoles?: unknown[];
+              mentionedEveryone?: boolean;
+              content?: string;
+            };
+          };
+        }
+      | undefined;
+
+    expect(preflightData?.data?.message?.content).toBe("hello\nworld");
+    expect(preflightData?.data?.message?.mentionedUsers).toEqual([
+      { id: "bot-123", username: "Bot" },
+    ]);
+    expect(preflightData?.data?.message?.mentionedRoles).toEqual([{ id: "role-1", name: "Admin" }]);
+    expect(preflightData?.data?.message?.mentionedEveryone).toBe(true);
+  });
 });

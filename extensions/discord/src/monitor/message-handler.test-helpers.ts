@@ -6,11 +6,12 @@ import { createNoopThreadBindingManager } from "./thread-bindings.js";
 export const DEFAULT_DISCORD_BOT_USER_ID = "bot-123";
 
 export function createDiscordHandlerParams(overrides?: {
+  cfg?: OpenClawConfig;
   botUserId?: string;
   setStatus?: (patch: Record<string, unknown>) => void;
   abortSignal?: AbortSignal;
 }): Parameters<typeof createDiscordMessageHandler>[0] {
-  const cfg: OpenClawConfig = {
+  const cfg: OpenClawConfig = overrides?.cfg ?? {
     channels: {
       discord: {
         enabled: true,

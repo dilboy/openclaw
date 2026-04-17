@@ -196,10 +196,26 @@ export function createDiscordMessageHandler(
           )
           .filter(Boolean)
           .join("\n");
+        const allMentionedUsers = entries
+          .flatMap((entry) => entry.data.message.mentionedUsers ?? [])
+          .filter(Boolean);
+        const mergedMentionedUsers = allMentionedUsers.filter(
+          (user, index, self) => index === self.findIndex((u) => u.id === user.id),
+        );
+        const allMentionedRoles = entries
+          .flatMap((entry) => entry.data.message.mentionedRoles ?? [])
+          .filter(Boolean);
+        const mergedMentionedRoles = allMentionedRoles.filter(
+          (role, index, self) => index === self.findIndex((r) => r.id === role.id),
+        );
+        const anyMentionedEveryone = entries.some((entry) => entry.data.message.mentionedEveryone);
         const syntheticMessage = Object.create(Object.getPrototypeOf(last.data.message), {
           ...Object.getOwnPropertyDescriptors(last.data.message),
           content: { value: combinedBaseText, enumerable: true, configurable: true },
           attachments: { value: [], enumerable: true, configurable: true },
+          mentionedUsers: { value: mergedMentionedUsers, enumerable: true, configurable: true },
+          mentionedRoles: { value: mergedMentionedRoles, enumerable: true, configurable: true },
+          mentionedEveryone: { value: anyMentionedEveryone, enumerable: true, configurable: true },
           message_snapshots: {
             value: (last.data.message as { message_snapshots?: unknown }).message_snapshots,
             enumerable: true,
